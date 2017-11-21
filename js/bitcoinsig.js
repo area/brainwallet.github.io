@@ -41,9 +41,15 @@ function verify_message(signature, message, addrtype) {
 
     // get recid
     var compressed = false;
+    var p2shsegwit = false;
     var nV = sig[0];
-    if (nV < 27 || nV >= 35)
+    if (nV < 27 || nV >= 39)
         return false;
+    if (nV >= 35) {
+        compressed = true;
+        p2shsegwit = true;
+        nV -= 8;
+    }
     if (nV >= 31) {
         compressed = true;
         nV -= 4;
@@ -70,9 +76,16 @@ function verify_message(signature, message, addrtype) {
     var Q = (R.multiply(s).add(G.multiply(minus_e))).multiply(inv_r);
 
     var public_key = Q.getEncoded(compressed);
-    var addr = new Bitcoin.Address(Bitcoin.Util.sha256ripe160(public_key));
-
-    addr.version = addrtype ? addrtype : 0;
+    var addr;
+    if (p2shsegwit) {
+        var script = Bitcoin.Util.sha256ripe160(public_key);
+        script.unshift(0, 20);
+        addr = new Bitcoin.Address(Bitcoin.Util.sha256ripe160(script));
+        addr.version = 5;
+    } else {
+        addr = new Bitcoin.Address(Bitcoin.Util.sha256ripe160(public_key));
+        addr.version = addrtype ? addrtype : 0;
+    }
     return addr.toString();
 }
 
